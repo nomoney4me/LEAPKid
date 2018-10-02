@@ -1,0 +1,193 @@
+<!doctype html>
+<html ng-app="app">
+	<head>
+		<link rel="apple-touch-icon" href="img/custom_icon.png">
+		<link rel="apple-touch-icon" sizes="152x152" href="img/custom_icon.png">
+		
+		<script src="js/angular.min.js"></script>		
+		<script src="js/angular-cookies.min.js"></script>
+		<script src="/socket.io/socket.io.js"></script>
+		
+		<link rel="stylesheet" href="css/bootstrap.css" />
+		
+		<script>
+			var socket = io();
+			var app = angular.module('app', ['ngCookies']);									
+			app.controller('ctrl', function($scope, $cookies) {								
+				$scope.login = function(form) {					
+					$scope.loading = true;
+					//console.log(form);
+					socket.emit('parentlogin request', form)
+				}
+				
+				$scope.checkout = function(child) {
+					socket.emit('checkout student request', child)
+				}
+				
+				socket.on('mychildren result', function(children) {
+					console.log(children)
+					$scope.error = "";				
+					$scope.loading = true;
+					if(children[0].UserId) {
+						$scope.loggedin = true;
+						$scope.mychildren = children;
+						$scope.loading = false;
+					}else {
+						$scope.loading = false;
+						$scope.error = children;
+					}
+					
+					$scope.$apply();
+				})
+				
+				$scope.remove = function(index) {
+					//console.log(item.$index)
+  				$scope.mychildren.splice(index, 1)
+				}
+				
+				$scope.logout = function() {
+					location.reload();
+				}
+			})
+		</script>
+		
+		<style>
+			.col-centered {
+				margin:0 auto;
+				float:none;
+			}
+			
+			input[type='text'], input[type='password'] {
+				width:75%;
+				border-radius:10px;
+				box-shadow: none;
+				padding:5px;
+				font-size:25pt;
+			}
+			
+			.loginform tr {				
+				padding:100px 0 !important;				
+			}
+
+			.loginform tr td {
+				border:none !important;
+				font-size:30pt;
+				text-align:center;
+			}
+			
+			input[type="submit"] {
+				background:#2e6da4;
+				width:100%;
+				font-size:45pt;
+			}
+		</style>
+		
+		<style>		
+			.receipt {
+				width:3in;		
+				text-align:center;
+				border:1px solid black;
+			}	
+			
+			#receipts li {
+				list-style:none;
+			}
+			
+			.checkout-btn {
+				width:300px;
+				margin-right:120px;
+				font-size:16pt;
+			}
+			@media print {
+				#checkout {
+					display:none;			
+				}
+				
+				.receipt {
+					width:3in;		
+					text-align:center;
+					border:1px solid black;			
+				}
+				
+				body {
+					font-size:14pt;
+				}
+			}
+
+		</style>
+	</head>
+	<body ng-controller="ctrl" ng-class="container-fluid">
+		<div ng-show="error" class="row">
+			<p style="color:red;text-align:center;margin-top:20px;" class="col-md-6 col-centered">{{error}}</p>
+		</div>
+		
+		<div class="row">						
+			<div class="col-md-12 col-centered">	
+				<div class="col-md-10 col-xs-12 col-centered" style="text-align:center;">
+					<div class="col-md-10 col-xs-12 col-centered"><img src="img/banner.jpg" width="70%" ></div>
+					<div class="col-md-4 col-centered">
+						<img ng-show="loading" src="loading-spinner.gif" style="height:50px;" />			
+					</div>
+				</div>		
+				
+				<div class="col-xs-8" style="margin-top:10px;" id="checkout" ng-show="loggedin">
+					<table class="table">
+						<tr ng-repeat="child in mychildren" ng-show="child.Relationship == 'Child' "> <!-- $scope.mychildren -->
+							<td>
+								<b class="btn btn-success checkout-btn">{{child.LastName}}, {{child.FirstName}}</b>
+							</td>
+							
+							<td ng-click="checkout(child); remove($index);">
+								<b class="btn btn-danger checkout-btn">Check-Out</b>
+							</td>
+							<!-- <td>
+								<a ng-click="checkedout(child); removerecord($index);">Check Out</a>
+								<input type="button" class="btn btn-default btn-success" ng-click="checkedout(child)" value="Check out" />
+							</td> -->
+						</tr>
+					</table>
+					
+					<!-- <button ng-click="printreceipt()">Print Receipt</button> -->
+					<div><button style="width:250px;height:250px;font-size:30pt;" class="btn btn-info" ng-click="logout()">Logout</button></div>
+				</div>
+				
+				<form ng-submit="login(form)" class="col-md-8 col-centered col-xs-8" style="text-align:center;" ng-hide="loggedin">
+					<p class="col-md-12" style="text-align:center; margin:20px 0 20px 0; font-size:16pt; color:red;">Login using your parent portal credentials.</p>				
+					<table class="table loginform">
+						<tr style="height:50px;">
+							<td style="width:100px;"><b>Username: </b></td>
+							<td><input type="text" ng-model="form.user" /></td>	
+						</tr>
+						<tr>
+							<td style="width:100px;"><b>Password: </b></td>
+							<td><input type="password" ng-model="form.pass" /></td>
+						</tr>
+					</table>
+
+					<div style="font-size:16pt;">
+						<p><a href="url">Forgot Password</a></p>
+					</div>
+					
+					<input type="submit" value="Login" class="btn btn-primary"/>
+				</form>
+			
+			</div>
+		</div>	
+
+
+		
+
+	<!--
+		<div id="receipts" ng-show="listcheckedout" class="col-xs-6">
+			<ul>	
+				<li ng-repeat="student in listcheckedout" class="receipt">			
+					<p>{{student.student.LastName}}, {{student.student.FirstName}}</p>
+					has been checked out at: 
+					<hr />
+					<p>{{time | date:'medium'}}</p>
+				</li>
+			</ul>
+		</div>				
+		-->
+	</body>
+</html>

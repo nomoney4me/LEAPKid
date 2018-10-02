@@ -1,0 +1,178 @@
+<!doctype html>
+<html ng-app="app">
+	<head>
+		<script data-require="jquery@3.1.1" data-semver="3.1.1" src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+    <script src="//jonthornton.github.io/jquery-timepicker/jquery.timepicker.js"></script>
+		
+		<script src="js/angular.min.js"></script>
+		<script src="js/angular-cookies.min.js"></script>
+		<script src="js/toArrayFilter.js"></script>
+		<script src="/socket.io/socket.io.js"></script>
+
+		<link rel="stylesheet" href="//jonthornton.github.io/jquery-timepicker/jquery.timepicker.css">
+		
+		<link rel="stylesheet" href="css/bootstrap.css" />
+		<link rel="stylesheet" href="css/dashboard.css" />
+		<script>
+			var socket = io();
+			var app = angular.module('app', ['ngCookies', 'angular-toArrayFilter']);
+			app.directive('timepicker', (() => {
+			  return {
+			    restrict: 'A',
+			    link: function(scope, element, attrs){
+			      element.timepicker({
+			      	'scrollDefault': 'now',
+			      	'timeFormat': 'H:i:s'	
+			      });
+			    }
+			  }
+			}))
+			
+			
+			app.controller('ctrl', function($scope, $cookies, $location) {
+				/* $scope.updateDB = function() {
+					socket.emit('update db')
+				} */
+
+				$scope.getRecords = function(gradelevel) {
+					$scope.loggedin = true;
+					$scope.selectedGradeLevel = gradelevel;
+					socket.emit('request to join room', gradelevel)
+					socket.emit('request records from DB', gradelevel)
+					
+					$scope.isiPad = navigator.userAgent.match(/iPad/i) != null;
+					
+				}
+
+				$scope.login = function(pin) {
+					$scope.loading = true;
+					socket.emit('login request', pin);
+				}
+
+				socket.on('login result', function(user) {
+					if(user[0].UserID) {
+						$scope.getRecords('SK')
+						socket.emit('get records from DB', user);		//request for student list: default is JK
+					}else {
+						$scope.error = 'login error';
+						$scope.$digest();
+					}
+				})
+
+
+				socket.on('students result list', function(data) {
+					$scope.allstudents = data;
+					$scope.loading=false;
+					$scope.$apply();
+				})
+
+				$scope.checkin = function(student, activity) {
+					if(isCheckedOut(student) === true) { //if kid is already checked out, don't do anything
+						alert('Student has already been signed out.')
+					}else{
+						var obj = {
+							UserID: student.UserID,
+							Activity_ID: activity.Activity_ID,
+							//Admin: user.LastName+', '+user.FirstName,
+							selectedGradeLevel: $scope.selectedGradeLevel
+						}
+
+						if(!activity.checkedin_time) { //assume that we are checking in the student, or undoing due to mis-click
+							var user = $cookies.getObject('user');
+							socket.emit('insertmysql request', obj)
+						}else {
+							socket.emit('undo checkin request', obj)
+						}
+					}
+				}
+
+				$scope.checkout = function(student, form) {
+					console.log(isCheckedOut(student))
+					if(!isCheckedOut(student)) {
+						var obj = {
+							UserID:student.UserID,
+							checkedout_time:form.checkedout_time,
+							selectedGradeLevel:$scope.selectedGradeLevel
+						}
+						
+						console.log(obj)
+						socket.emit('admin checkout', obj)
+					}
+				}
+
+				$scope.isCheckedOut = function(student) {
+					if(isCheckedOut(student) === true) {
+						return 'checkedout'
+					}
+				}
+				
+				$scope.undoCheckout = function(student) {
+					student.selectedGradeLevel = $scope.selectedGradeLevel
+					socket.emit('undo checkout request', student)
+				}
+
+				function isCheckedOut(student) {
+					for(var key in student.Activities) {
+						if(student.Activities[key].checkedout_time) {
+							return true;
+						}
+					}
+				}
+			})
+
+		</script>
+	</head>
+	<body ng-controller="ctrl" class="container-fluid container-table">
+		<div class="noprint">
+			<!-- <button ng-click="updateDB()">Update DB</button>
+			<button ng-click="getRecords('SK')">Get Records</button> -->
+
+			<img src="loading-spinner.gif" ng-show="loading" />
+
+			<pre ng-show="error">{{error | json}}</pre>
+			<form ng-submit="login(pin)" ng-hide="loggedin" id="loginform" class="row vertical-center-row" style="padding:50px;">
+				<div class="col-xs-12">
+						<div class="row">Pin: <input ng-model="pin" /></div>
+				</div>
+			</form>
+
+			<div ng-show="loggedin" class="col-xs-12">
+				<!-- <button class="col-xs-2" ng-click="loadgrade('jk')">JK</button> -->
+				<button class="col-xs-2" ng-click="getRecords('SK')">SK</button>
+				<button class="col-xs-2" ng-click="getRecords('1')">1st</button>
+				<button class="col-xs-2" ng-click="getRecords('2')">2nd</button>
+				<button class="col-xs-2" ng-click="getRecords('3')">3rd</button>
+				<!-- <button class="col-xs-2" ng-click="getRecords('4')">4th</button>
+				<button class="col-xs-2" ng-click="getRecords('5')">5th</button> -->
+			</div>
+		</div>
+		<h3 ng-show="selectedGradeLevel">{{selectedGradeLevel | uppercase}}</h3>
+		<table ng-show="loggedin" class="checkin table liststudents">
+			<tr ng-repeat="student in allstudents | toArray:false | orderBy:'LastName' " ng-class="isCheckedOut(student)">
+				<td class="name">
+					{{student.LastName}}, {{student.FirstName}}<br>
+					<noprint>({{student.UserID}})</noprint>
+				</td>
+				<td class="activities"
+						ng-repeat="activity in student.Activities track by $index"
+						ng-class="{'checkedin':activity.checkedin_time}"
+						ng-click="checkin(student, activity)">
+
+					<div class="top" style="padding-bottom:20px;">{{activity.Activity_Name}}</div>
+					<div class="bottom">
+						In: {{activity.checkedin_time | date:'yyyy-MM-dd h:mm:ss a'}}<br>
+						Out: {{activity.checkedout_time | date:'yyyy-MM-dd h:mm:ss a'}}
+					</div>
+				</td>
+				<td ng-class="{'hidden':isiPad === true}" class="noprint">
+					<div>Admin Check-out:
+					<form ng-submit="checkout(student, form)">
+						<input ng-model="form.checkedout_time" timepicker />
+						<input type='submit' value="Check-out" />
+					</form></div>
+					<button ng-click="undoCheckout(student)">Undo</button>
+				</td>
+			</tr>
+		</table>
+	</body>
+</html>

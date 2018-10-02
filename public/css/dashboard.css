@@ -1,0 +1,109 @@
+html, body {
+	height:100%;
+}
+.container-table {
+	height:50%;
+}
+
+.container-table {
+	display:table;
+}
+
+.vertical-center-row {
+	display:table-cell;
+	vertical-align:middle;
+}
+
+.activities:hover {
+	cursor:pointer;
+	background:#75EE4D;
+}
+
+.liststudents td {
+	min-width:100px;
+	position:relative;
+	border:1px solid black !important;
+}
+
+
+.liststudents tr {
+	height:75px;
+	position:relative;
+	font-size:11pt;
+}
+
+.activities {
+	border:1px solid black;
+	word-wrap:break-word;
+  padding:0 5px;
+  width:200px;
+  line-height:75px;
+}
+
+.top, .bottom {
+	position:absolute;
+}
+
+.top {
+	top:10px;
+}
+
+.bottom {
+	bottom:2px;
+}
+
+.checkedin {
+	background:#75EE4D;
+}
+
+.checkedout td {
+	background:#ccc !important;
+}
+
+#loginform {
+	font-size:20pt;
+}
+
+.col-centered {
+	float:none;
+	margin:0 auto;
+}
+
+button {
+	height:50px;
+	margin:10px 0 10px 0;
+	text-align:center;
+	vertical-align:middle;
+}
+
+.hidden {
+	display:none;
+}
+
+@media print {
+	body {
+		margin:.25in .25in .25in .25in;
+	}
+	
+	.noprint, noprint {
+		display:none;
+	}
+	
+	.top, .bottom {
+		position:absolute;
+	}
+
+	.top {
+		top:10px;
+	}
+
+	.bottom {
+		bottom:2px;
+	}
+
+	tr td {
+		font-size:9pt;
+		margin:1px;
+		border:1pt solid black;
+	}
+}
